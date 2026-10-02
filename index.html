@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>Высшая математика — Учебный портал</title>
+  
+  <!-- KaTeX CSS for beautiful math rendering -->
+  <link rel="stylesheet" href="assets/vendor/katex.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  
+  <!-- Critical Mobile Styles (embedded directly to prevent mobile browser cache issues) -->
+  <style>
+    /* Critical resets & mobile layout */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    html, body {
+      height: 100%;
+      height: 100dvh;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      overscroll-behavior: none;
+      -webkit-overscroll-behavior: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-header {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      overflow: hidden;
+      flex-shrink: 0;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .app-container {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .app-main {
+      flex: 1;
+      min-height: 0;
+      height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+    }
+    
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex-shrink: 1;
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      min-width: 0;
+    }
+    
+    .logo-text h1 {
+      font-size: 1.15rem;
+      white-space: nowrap;
+      margin: 0;
+    }
+    
+    .mobile-subbar {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .app-header {
+        height: 52px;
+        min-height: 52px;
+        max-height: 52px;
+        padding: 0 10px;
+      }
+      
+      .logo-tagline {
+        display: none !important;
+      }
+      
+      .header-right .badge-source {
+        display: none !important;
+      }
+      
+      .mobile-subbar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(56, 189, 248, 0.08);
+        border-bottom: 1px solid var(--border-subtle, rgba(148, 163, 184, 0.15));
+        padding: 5px 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--accent-primary, #38bdf8);
+        text-align: center;
+        letter-spacing: 0.01em;
+        flex-shrink: 0;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      
+      .topic-breadcrumbs .crumb-topic,
+      .topic-breadcrumbs .crumb-sep {
+        display: none !important;
+      }
+      
+      .topic-breadcrumbs {
+        display: block !important;
+        font-size: 0.8rem !important;
+        margin-bottom: 6px !important;
+      }
+    }
+  </style>
+
+  <!-- Main Stylesheet with cache-buster -->
+  <link rel="stylesheet" href="assets/style.css?v=2.3.0">
+  
+  <!-- Favicon icon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>∫</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <button id="menu-toggle-btn" class="menu-toggle" aria-label="Открыть меню">☰</button>
+      <a href="#" class="logo-container">
+        <div class="logo-icon">∫</div>
+        <div class="logo-text">
+          <h1>Высшая математика</h1>
+          <span class="logo-tagline">База знаний по университетским материалам</span>
+        </div>
+      </a>
+    </div>
+
+    <div class="header-center">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" class="search-input" placeholder="Поиск по темам, формулам и терминам (например: Крамер, Муавр, Гаусс, Лагранж)...">
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="badge-source" title="Материал со временем дополняется">
+        <span class="badge-icon">⏳</span>
+        <span class="badge-text">Материал со временем дополняется</span>
+      </div>
+      <button id="mobile-search-btn" class="btn-icon mobile-search-btn" title="Поиск по конспектам" aria-label="Поиск">🔍</button>
+      <button id="theme-toggle-btn" class="btn-icon" title="Сменить тему оформления" aria-label="Сменить тему">🌙</button>
+    </div>
+  </header>
+
+  <!-- Dedicated mobile status strip -->
+  <div class="mobile-subbar">
+    <span>⏳ Материал со временем дополняется</span>
+  </div>
+
+  <!-- Main Application Body -->
+  <div class="app-container">
+    <!-- Sidebar: Modules and Topics Navigation -->
+    <aside id="app-sidebar" class="app-sidebar">
+      <div class="sidebar-heading">Учебные модули курса</div>
+      <ul id="module-nav-list" class="module-nav-list">
+        <!-- Injected via app.js -->
+      </ul>
+    </aside>
+
+    <!-- Overlay for mobile drawer -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <!-- Main Content Reader -->
+    <main class="app-main">
+      <div class="content-wrapper">
+        <div id="topic-content-container">
+          <!-- Injected via app.js -->
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Search Modal Overlay -->
+  <div id="search-modal" class="search-results-overlay">
+    <div class="search-results-modal">
+      <div class="search-modal-header">
+        <div class="search-modal-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="modal-search-input" class="search-input modal-search-input" placeholder="Поиск по темам, терминам, формулам...">
+        </div>
+        <button id="btn-close-modal" class="btn-close-modal" aria-label="Закрыть поиск">✕</button>
+      </div>
+      <ul id="search-results-list" class="search-results-list">
+        <!-- Injected via app.js -->
+      </ul>
+    </div>
+  </div>
+
+  <!-- Scripts with cache busters -->
+  <script src="assets/vendor/katex.min.js"></script>
+  <script src="assets/vendor/auto-render.min.js"></script>
+  <script src="assets/modules_data.js?v=2.3.0"></script>
+  <script src="assets/app.js?v=2.3.0"></script>
+</body>
+</html>
