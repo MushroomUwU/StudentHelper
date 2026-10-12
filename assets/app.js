@@ -33,22 +33,165 @@ document.addEventListener("DOMContentLoaded", () => {
   document.documentElement.setAttribute("data-theme", savedTheme);
   updateThemeIcon(savedTheme);
 
+
+  // ==========================================================================
+  // Completed State & Flag Management (Saved in localStorage)
+  // ==========================================================================
+  function getCompletedModules() {
+    try {
+      return JSON.parse(localStorage.getItem("matan_completed_modules") || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setCompletedModules(list) {
+    localStorage.setItem("matan_completed_modules", JSON.stringify(list));
+  }
+
+  function getCompletedTopics() {
+    try {
+      return JSON.parse(localStorage.getItem("matan_completed_topics") || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setCompletedTopics(list) {
+    localStorage.setItem("matan_completed_topics", JSON.stringify(list));
+  }
+
+  function isModuleCompleted(modId) {
+    return getCompletedModules().includes(modId);
+  }
+
+  function isTopicCompleted(topicId) {
+    return getCompletedTopics().includes(topicId);
+  }
+
+  function toggleModuleCompleted(modId) {
+    const mod = modules.find(m => m.id === modId);
+    let modCompleted = getCompletedModules();
+    let topicCompleted = getCompletedTopics();
+
+    const isDone = modCompleted.includes(modId);
+    if (isDone) {
+      // Remove flag from module and its topics
+      modCompleted = modCompleted.filter(id => id !== modId);
+      if (mod) {
+        const tIds = mod.topics.map(t => t.id);
+        topicCompleted = topicCompleted.filter(id => !tIds.includes(id));
+      }
+    } else {
+      // Flag module and all its topics
+      modCompleted.push(modId);
+      if (mod) {
+        mod.topics.forEach(t => {
+          if (!topicCompleted.includes(t.id)) {
+            topicCompleted.push(t.id);
+          }
+        });
+      }
+    }
+
+    setCompletedModules(modCompleted);
+    setCompletedTopics(topicCompleted);
+
+    updateUI();
+  }
+
+  function toggleTopicCompleted(modId, topicId) {
+    const mod = modules.find(m => m.id === modId);
+    let modCompleted = getCompletedModules();
+    let topicCompleted = getCompletedTopics();
+
+    if (topicCompleted.includes(topicId)) {
+      topicCompleted = topicCompleted.filter(id => id !== topicId);
+      // If module was flagged as completed, unflag it
+      modCompleted = modCompleted.filter(id => id !== modId);
+    } else {
+      topicCompleted.push(topicId);
+      // If all topics in module are now done, flag module too
+      if (mod && mod.topics.every(t => topicCompleted.includes(t.id))) {
+        if (!modCompleted.includes(modId)) {
+          modCompleted.push(modId);
+        }
+      }
+    }
+
+    setCompletedModules(modCompleted);
+    setCompletedTopics(topicCompleted);
+
+    updateUI();
+  }
+
+  function updateUI() {
+    const appMain = document.querySelector(".app-main");
+    const scrollPos = appMain ? appMain.scrollTop : 0;
+
+    renderSidebar();
+    renderContent();
+
+    if (appMain) {
+      appMain.scrollTop = scrollPos;
+    }
+  }
+
+  function updateProgressWidget() {
+    const widget = document.getElementById("course-progress-widget");
+    if (!widget) return;
+    const completedList = getCompletedModules();
+    const total = modules.length;
+    const completedCount = modules.filter(m => completedList.includes(m.id)).length;
+    const percent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
+
+    widget.innerHTML = `
+      <div class="progress-meta">
+        <span class="progress-label">Пройдено глав:</span>
+        <span class="progress-count">${completedCount} / ${total} <span class="progress-percent">(${percent}%)</span></span>
+      </div>
+      <div class="progress-bar-bg" title="Общий прогресс курса: ${percent}%">
+        <div class="progress-bar-fill" style="width: ${percent}%;"></div>
+      </div>
+      ${completedCount === total && total > 0 ? '<div class="progress-congrats">🎉 Весь курс пройден!</div>' : ''}
+    `;
+  }
+
   // Render Sidebar
   function renderSidebar() {
     sidebarNav.innerHTML = "";
     modules.forEach((mod, mIdx) => {
+      const isCompleted = isModuleCompleted(mod.id);
       const li = document.createElement("li");
-      li.className = `nav-module-item ${mIdx === currentModuleIndex ? "open" : ""}`;
+      li.className = `nav-module-item ${mIdx === currentModuleIndex ? "open" : ""} ${isCompleted ? "completed" : ""}`;
 
       const btn = document.createElement("button");
       btn.className = `nav-module-btn ${mIdx === currentModuleIndex ? "active" : ""}`;
       btn.innerHTML = `
         <span class="nav-module-title">
           <span class="nav-icon">${mod.icon}</span>
-          <span>${mod.title}</span>
+          <span class="nav-module-text">${mod.title}</span>
         </span>
-        <span class="chevron-icon">▶</span>
+        <span class="nav-module-right">
+          <span class="module-flag-btn ${isCompleted ? "flagged" : ""}" 
+                role="button" 
+                tabindex="0"
+                title="${isCompleted ? 'Глава пройдена (нажмите, чтобы убрать флажок)' : 'Поставить флажок (глава пройдена)'}" 
+                aria-label="Флажок прохождения">
+            ${isCompleted ? "⛳" : "🏳️"}
+          </span>
+          <span class="chevron-icon">▶</span>
+        </span>
       `;
+
+      // Flag click handler on module
+      const flagBtn = btn.querySelector(".module-flag-btn");
+      if (flagBtn) {
+        flagBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleModuleCompleted(mod.id);
+        });
+      }
 
       btn.addEventListener("click", () => {
         const isOpen = li.classList.contains("open");
@@ -66,11 +209,30 @@ document.addEventListener("DOMContentLoaded", () => {
       sublist.className = "nav-topics-sublist";
 
       mod.topics.forEach((t, tIdx) => {
+        const isTopicDone = isTopicCompleted(t.id);
         const subLi = document.createElement("li");
+        subLi.className = "nav-topic-item";
+
         const a = document.createElement("a");
         a.href = "#";
-        a.className = `nav-topic-link ${mIdx === currentModuleIndex && tIdx === currentTopicIndex ? "active" : ""}`;
-        a.textContent = t.title;
+        a.className = `nav-topic-link ${mIdx === currentModuleIndex && tIdx === currentTopicIndex ? "active" : ""} ${isTopicDone ? "topic-done" : ""}`;
+        a.innerHTML = `
+          <span class="topic-flag-icon ${isTopicDone ? "flagged" : ""}" 
+                title="${isTopicDone ? 'Тема изучена (нажмите, чтобы снять)' : 'Отметить тему как изученную'}">
+            ${isTopicDone ? "✓" : "○"}
+          </span>
+          <span class="nav-topic-text">${t.title}</span>
+        `;
+
+        // Flag click handler on subtopic
+        const topicFlag = a.querySelector(".topic-flag-icon");
+        if (topicFlag) {
+          topicFlag.addEventListener("click", (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            toggleTopicCompleted(mod.id, t.id);
+          });
+        }
 
         a.addEventListener("click", (e) => {
           e.preventDefault();
@@ -86,6 +248,8 @@ document.addEventListener("DOMContentLoaded", () => {
       li.appendChild(sublist);
       sidebarNav.appendChild(li);
     });
+
+    updateProgressWidget();
   }
 
   // Select and Render Topic
@@ -118,16 +282,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const topic = mod.topics[currentTopicIndex];
     if (!topic) return;
 
+    const isCompleted = isModuleCompleted(mod.id);
+    const isTopicDone = isTopicCompleted(topic.id);
+
     let html = `
       <div class="topic-header">
-        <div class="topic-breadcrumbs">
-          <span class="crumb-module">${mod.icon} ${mod.title}</span>
-          <span class="crumb-sep">/</span>
-          <span class="crumb-topic">${topic.title}</span>
+        <div class="topic-header-row">
+          <div class="topic-breadcrumbs">
+            <span class="crumb-module">${mod.icon} ${mod.title}</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-topic">${topic.title}</span>
+          </div>
+          <button id="toggle-complete-btn" class="flag-toggle-btn ${isCompleted ? 'active' : ''}" 
+                  title="${isCompleted ? 'Глава пройдена (нажмите, чтобы снять флажок)' : 'Отметить главу как пройденную'}">
+            <span class="flag-icon">${isCompleted ? '⛳' : '🏳️'}</span>
+            <span class="flag-label">${isCompleted ? 'Глава пройдена' : 'Поставить флажок'}</span>
+          </button>
         </div>
         <h2 class="topic-title">${topic.title}</h2>
-        <div class="topic-source-tag">
-          <span>📄 Источник: ${mod.source}</span>
+        <div class="topic-meta-row">
+          <div class="topic-source-tag">
+            <span>📄 Источник: ${mod.source}</span>
+          </div>
+          <div class="topic-status-tag ${isCompleted ? 'status-done' : ''}">
+            <span>${isCompleted ? '✅ Глава изучена' : (isTopicDone ? '✓ Тема изучена' : '⏳ В процессе освоения')}</span>
+          </div>
         </div>
       </div>
 
@@ -161,6 +340,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
     html += `</div>`;
     topicContainer.innerHTML = html;
+
+
+    // Attach Complete/Flag Toggle Handler
+    const toggleBtn = document.getElementById("toggle-complete-btn");
+    if (toggleBtn) {
+      toggleBtn.addEventListener("click", () => {
+        toggleModuleCompleted(mod.id);
+      });
+    }
 
     // Attach Tab Events
     document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -362,6 +550,25 @@ document.addEventListener("DOMContentLoaded", () => {
         <button id="btn-calc-cplx" class="btn-tool" style="background: var(--accent-secondary);">Посчитать $z_1, z_2$</button>
         <div id="cplx-result" class="tool-output"></div>
       </div>
+
+      <!-- Tool 4: Hyperbolic Functions & Parity Decomposition -->
+      <div class="card-tool" style="border-left-color: #f59e0b;">
+        <div class="card-tool-title" style="color: #f59e0b;">
+          <span>📈 Гиперболические функции и четность/нечетность</span>
+        </div>
+        <p class="card-tool-desc">
+          Вычисляет значения $\\text{sh}(x), \\text{ch}(x), \\text{th}(x), \\text{cth}(x)$, проверяет тождество $\\text{ch}^2 x - \\text{sh}^2 x = 1$ и разложение экспоненты $e^x = \\text{ch}(x) + \\text{sh}(x)$ (Глава 9.2).
+        </p>
+        <div class="tool-inputs">
+          <div class="tool-input-group">
+            <label>Аргумент $x$:</label>
+            <input type="number" id="hyp-x" class="tool-input" value="1" step="any" placeholder="например 1 или 2">
+          </div>
+        </div>
+        <button id="btn-calc-hyp" class="btn-tool" style="background: #f59e0b;">Рассчитать значения</button>
+        <div id="hyp-result" class="tool-output"></div>
+      </div>
+
     `;
   }
 
@@ -476,6 +683,39 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       });
     }
+
+    // 4. Hyperbolic & Parity
+    const btnHyp = document.getElementById("btn-calc-hyp");
+    if (btnHyp) {
+      btnHyp.addEventListener("click", () => {
+        const x = parseFloat(document.getElementById("hyp-x").value);
+        const out = document.getElementById("hyp-result");
+        if (isNaN(x)) {
+          out.textContent = "Пожалуйста, введите корректное число x.";
+          out.classList.add("visible");
+          return;
+        }
+        const ex = Math.exp(x);
+        const emx = Math.exp(-x);
+        const sh = (ex - emx) / 2;
+        const ch = (ex + emx) / 2;
+        const th = sh / ch;
+        const cth = (x !== 0) ? (ch / sh) : NaN;
+        const idVal = (ch**2 - sh**2).toFixed(6);
+
+        out.innerHTML = `Для аргумента $x = ${x}$:\n` +
+          `$$\\text{sh}(${x}) = \\frac{e^{${x}} - e^{-${x}}}{2} \\approx ${sh.toFixed(6)}$$\n` +
+          `$$\\text{ch}(${x}) = \\frac{e^{${x}} + e^{-${x}}}{2} \\approx ${ch.toFixed(6)}$$\n` +
+          `$$\\text{th}(${x}) = \\frac{\\text{sh}(${x})}{\\text{ch}(${x})} \\approx ${th.toFixed(6)}$$\n` +
+          (x !== 0 ? `$$\\text{cth}(${x}) = \\frac{\\text{ch}(${x})}{\\text{sh}(${x})} \\approx ${cth.toFixed(6)}$$\n` : `$$\\text{cth}(0) \\text{ не существует (деление на ноль!)}$$\n`) +
+          `**Проверка основного тождества:** $\\text{ch}^2(${x}) - \\text{sh}^2(${x}) = ${idVal} \\equiv 1$\n` +
+          `**Разложение $e^{${x}}$ на четную и нечетную части:**\n` +
+          `$$e^{${x}} = \\text{ch}(${x}) + \\text{sh}(${x}) \\approx ${ch.toFixed(6)} + (${sh.toFixed(6)}) = ${(ch + sh).toFixed(6)}$$`;
+        out.classList.add("visible");
+        renderMath();
+      });
+    }
+
   }
 
   // Math formatting helper
